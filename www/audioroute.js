@@ -1,6 +1,6 @@
 
 function AudioRoute() {
-    cordova.exec(routeChangeCallback, null, 'AudioRoute', 'setRouteChangeCallback', []);
+    // cordova.exec(routeChangeCallback, null, 'AudioRoute', 'setRouteChangeCallback', []);
 }
 
 AudioRoute.prototype.currentOutputs = function(successCallback, errorCallback) {
@@ -8,9 +8,9 @@ AudioRoute.prototype.currentOutputs = function(successCallback, errorCallback) {
 };
 
 AudioRoute.prototype.overrideOutput = function(output, successCallback, errorCallback) {
-    if (output !== 'default' && output !== 'speaker') {
-        throw new Error('output must be one of "default" or "speaker"');
-    }
+    // if (output !== 'default' && output !== 'speaker') {
+    //     throw new Error('output must be one of "default" or "speaker"');
+    // }
     cordova.exec(successCallback, errorCallback, 'AudioRoute', 'overrideOutput', [output]);
 };
 

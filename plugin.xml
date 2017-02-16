@@ -11,11 +11,12 @@
         <engine name="cordova" version=">=6.0.0"/>
     </engines>
 
-    <js-module src="www/audioroute.js" name="AudioRoute">
-        <clobbers target="cordova.plugins.audioroute" />
-    </js-module>
+  
 
     <platform name="ios">
+      <js-module src="www/audioroute.js" name="AudioRoute">
+        <clobbers target="cordova.plugins.audioroute" />
+       </js-module>
         <config-file target="config.xml" parent="/*">
             <feature name="AudioRoute">
                 <param name="ios-package" value="AudioRoute"/>
@@ -23,6 +24,32 @@
         </config-file>
         <header-file src="src/ios/AudioRoute.h"/>
         <source-file src="src/ios/AudioRoute.m"/>
+    </platform>
+
+    <!-- android -->
+    <platform name="android">
+      <js-module src="www/audioroute.js" name="plugin">
+        <runs/>
+
+        <!-- This is the window variable name you want, like window.MyCordovaPlugin -->
+        <clobbers target="AudioRoute" />
+      </js-module>
+      <config-file target="res/xml/config.xml" parent="/*">
+        <feature name="AudioRoute">
+          <param name="android-package" value="com.example.AudioRoute" />
+          <param name="onload" value="true" />
+        </feature>
+        
+      </config-file>
+      <config-file>
+          <uses-permission android:name="android.permission.BLUETOOTH" />
+          <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+      </config-file>
+
+      <source-file src="src/android/com/example/AudioRoute.java" target-dir="src/com/example/" />
+      <source-file src="src/android/com/example/AudioSystem.java" target-dir="src/com/example/" />
+      <source-file src="src/android/com/example/AudioRouter.java" target-dir="src/com/example/" />
+      <source-file src="src/android/libs/support-annotations-25.0.0.jar" target-dir="libs" />
     </platform>
 
 </plugin>
