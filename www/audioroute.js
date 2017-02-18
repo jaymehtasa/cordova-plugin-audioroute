@@ -1,6 +1,7 @@
 
+var exec = require('cordova/exec');
 function AudioRoute() {
-    // cordova.exec(routeChangeCallback, null, 'AudioRoute', 'setRouteChangeCallback', []);
+    cordova.exec(routeChangeCallback, null, 'AudioRoute', 'setRouteChangeCallback', []);
 }
 
 AudioRoute.prototype.currentOutputs = function(successCallback, errorCallback) {
@@ -13,10 +14,17 @@ AudioRoute.prototype.overrideOutput = function(output, successCallback, errorCal
     // }
     cordova.exec(successCallback, errorCallback, 'AudioRoute', 'overrideOutput', [output]);
 };
+ AudioRoute.prototype.setRouteChangeCallback = function(onChanged) {
+        exec(onChanged, function(err) {
+            console.log(err);
+        }, 'AudioRoute', 'setRouteChangeCallback', []);
+    }
 
 function routeChangeCallback(reason) {
     cordova.fireDocumentEvent('audioroute-changed', {reason: reason});
 }
+
+
 
 
 var audioRoute = new AudioRoute();

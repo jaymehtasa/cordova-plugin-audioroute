@@ -14,7 +14,8 @@ import java.util.Collection;
 import java.util.HashSet;
 
 import com.example.AudioSystem;
-
+import static com.example.AudioRoute.AUDIO_OUTPUT_CHANGED;
+import static com.example.AudioRoute.CURRENT;
 
 /**
  * <h2>Routing the audio output</h2>
@@ -210,15 +211,16 @@ public final class AudioRouter extends BroadcastReceiver {
         return (result == null) ? defaultValue : result;
     }
 
-    @Override
+   @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
         Bundle extras = intent.getExtras();
-
-        if (routeMode == AudioRouteMode.NO_ROUTING) {
-            return;
-        }
-
+        String typeSpeaker = "";
+        // if (routeMode == AudioRouteMode.NO_ROUTING) {
+        //     return;
+        // }
+        //Notify receiver when changed
+        Intent i = new Intent(AUDIO_OUTPUT_CHANGED);
         // update connecting devices
         int connectionState = extras.getInt("state");
         if (action.equals(INTENT_ACTION_ANALOG_AUDIO_DOCK_PLUG) || action.equals(MEDIA_ACTION_ANALOG_AUDIO_DOCK_PLUG)) {
@@ -228,11 +230,17 @@ public final class AudioRouter extends BroadcastReceiver {
                 usbAudio.setPortName(getStringFromBundle(extras, "name", ""));
 
                 if (connectionState == 1) {
+                    // Data you need to pass to activity
+//                    i.putExtra(CURRENT, "UsbAudio");
+                    typeSpeaker = "UsbAudio";
                     connectedUsbAudios.add(usbAudio);
                 } else if (connectionState == 0) {
+//                    i.putExtra(CURRENT, "Speaker");
+                    typeSpeaker = "Speaker";
                     connectedUsbAudios.remove(usbAudio);
                 }
 //                    Log.d("AudioRoute","USB");
+//                context.sendBroadcast(i);
                 setupRoute();
             }
 
@@ -241,14 +249,22 @@ public final class AudioRouter extends BroadcastReceiver {
             headset.setAddress(getStringFromBundle(extras, "address", ""));
             headset.setPortName(getStringFromBundle(extras, "portName", ""));
             headset.setMicrophone(extras.getInt("microphone", 0));
+//            Bundle extras1 = intent.getExtras();
 
             if (connectionState == 1) {
                 connectedHeadsets.add(headset);
                 routeMode = AudioRouteMode.WIRED_HEADPHONE;
+                // Data you need to pass to activity
+//                i.putExtra(CURRENT, "Headphone");
+                typeSpeaker = "Headphone";
             } else if (connectionState == 0) {
                 connectedHeadsets.remove(headset);
                 routeMode = AudioRouteMode.SPEAKER;
+                i.putExtra(CURRENT, "Speaker");
+                typeSpeaker = "Speaker";
             }
+
+//            context.sendBroadcast(i);
 //                Log.d("AudioRoute","Action headset plug");
 //                routeMode = AudioRouteMode.WIRED_HEADPHONE;
             setupRoute();
@@ -260,14 +276,24 @@ public final class AudioRouter extends BroadcastReceiver {
                 if (bluetoothConnectionState == 2) {
                     routeMode = AudioRouteMode.BLUETOOTH_A2DP;
                     connectedBluetoothDevices.add(bluetoothDevice);
+//                    i.putExtra(CURRENT, "Bluetooth");
+                    typeSpeaker = "Bluetooth";
                 } else if (bluetoothConnectionState == 0) {
                     routeMode = AudioRouteMode.SPEAKER;
                     connectedBluetoothDevices.remove(bluetoothDevice);
+//                    i.putExtra(CURRENT, "Speaker");
+                    typeSpeaker = "Speaker";
                 }
             }
+
 //                Log.d("AudioRoute","Blutetooth");
             setupRoute();
 
+        }
+
+        if (!typeSpeaker.equalsIgnoreCase("")) {
+            i.putExtra(CURRENT, typeSpeaker);
+            context.sendBroadcast(i);
         }
     }
 

@@ -1,14 +1,23 @@
 package com.example;
 
-import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.widget.Toast;
+import android.content.Context;
+import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
+import android.os.Bundle;
+
+ 
 
 import org.apache.cordova.CallbackContext;
+import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaResourceApi;
+import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.PluginResult;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -17,7 +26,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import com.example.AudioRouter;
 
  
 
@@ -29,20 +37,29 @@ import com.example.AudioRouter;
 public class AudioRoute extends CordovaPlugin {
 
     AudioManager audioM = null;
-    //    private Set<BluetoothDevice> devices;
-    IntentFilter filter1 = new IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED);
-    IntentFilter filter2 = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+ 
     //    String str;
     public static final String SPEAKER = "Speaker";
     public static final String BLUTOOTH = "Bluetooth";
     public static final String AUXILARY = "Auxilary";
     public static final String Headphone3 = "Headphone3";
+    
+     public static final String AUDIO_OUTPUT_CHANGED = "audio_output";
+     public static final String CURRENT = "current_output";
+    private CallbackContext audioCallbackContext = null;
 
     HashMap<String, String> hashDevices;
     AudioRouter audioRouter;
      public AudioRoute() {
         hashDevices = new HashMap<String, String>();
       
+  }
+
+  @Override
+  public void initialize(CordovaInterface cordova, CordovaWebView webView) {
+    super.initialize(cordova, webView);
+    audioRouter = new AudioRouter(cordova.getActivity());
+  
   }
 
     /**
@@ -54,9 +71,9 @@ public class AudioRoute extends CordovaPlugin {
      * @return A PluginResult object with a status and message.
      */
     @Override
-    public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
+    public boolean execute(String action, JSONArray args,final CallbackContext callbackContext) throws JSONException {
         CordovaResourceApi resourceApi = webView.getResourceApi();
-        PluginResult.Status status = PluginResult.Status.OK;
+        final PluginResult.Status status = PluginResult.Status.OK;
         String result = "";
         if (action.equals("currentOutputs")) {
             HashMap<String, String> devicesList = this.getDevicesList();
@@ -72,6 +89,26 @@ public class AudioRoute extends CordovaPlugin {
             callbackContext.sendPluginResult(new PluginResult(status, typeSpeaker));
             return true;
       }
+      if (action.equals("setRouteChangeCallback")) {
+            this.audioCallbackContext = callbackContext;
+            BroadcastReceiver receiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    Bundle bundle = intent.getExtras();
+                    String str = bundle.getString(CURRENT);
+                    // setRouteChangeCallback(str);
+                    // audioCallbackContext.sendPluginResult(new PluginResult(status, str));
+
+                    
+                        setRouteChangeCallback(str);
+                    //  callbackContext.sendPluginResult(result);
+                }
+            };
+            cordova.getActivity().
+                    registerReceiver(receiver, new IntentFilter(AUDIO_OUTPUT_CHANGED));
+                    return true;
+
+        }
         callbackContext.sendPluginResult(new PluginResult(status, result));
         return true;
     }
@@ -148,6 +185,13 @@ public class AudioRoute extends CordovaPlugin {
         }
         return hashDevices;
 
+    }
+    public void setRouteChangeCallback(String typeSpeaker) {
+                        // PluginResult result = new PluginResult(PluginResult.Status.OK, typeSpeaker);
+                        PluginResult result = new PluginResult(PluginResult.Status.OK, typeSpeaker);
+                        result.setKeepCallback(true);
+                        audioCallbackContext.sendPluginResult(result);
+        Toast.makeText(cordova.getActivity(), typeSpeaker, Toast.LENGTH_SHORT).show();
     }
 
 }
