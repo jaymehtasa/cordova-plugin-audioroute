@@ -1,7 +1,7 @@
 package com.example;
 
 import android.content.BroadcastReceiver;
-import android.widget.Toast;
+ 
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -42,7 +42,7 @@ public class AudioRoute extends CordovaPlugin {
     public static final String SPEAKER = "Speaker";
     public static final String BLUTOOTH = "Bluetooth";
     public static final String AUXILARY = "Auxilary";
-    public static final String Headphone3 = "Headphone3";
+    public static final String Headphone3 = "Headphone";
     
      public static final String AUDIO_OUTPUT_CHANGED = "audio_output";
      public static final String CURRENT = "current_output";
@@ -174,7 +174,7 @@ public class AudioRoute extends CordovaPlugin {
                 }
                 if (devices.getType() == AudioDeviceInfo.TYPE_WIRED_HEADSET) {
                     
-                    hashDevices.put("Headphone3", Headphone3);
+                    hashDevices.put("Headphone", Headphone3);
                 }
                 if (devices.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
                     
@@ -197,7 +197,7 @@ public class AudioRoute extends CordovaPlugin {
     result.setKeepCallback(true);
     if (audioCallbackContext != null)
       audioCallbackContext.sendPluginResult(result);
-    Toast.makeText(cordova.getActivity(), typeSpeaker, Toast.LENGTH_SHORT).show();
+    // /Toast.makeText(cordova.getActivity(), typeSpeaker, Toast.LENGTH_SHORT).show();
     return true;
   }
 
