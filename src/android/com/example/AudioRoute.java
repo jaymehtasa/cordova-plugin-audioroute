@@ -147,8 +147,8 @@ public class AudioRoute extends CordovaPlugin {
             String value = (String) mapEntry.getValue();
 
             try {
-                jObject.put("Name", keyValue);
-                jObject.put("Value", value);
+                jObject.put("name", keyValue);
+                jObject.put("value", value);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
