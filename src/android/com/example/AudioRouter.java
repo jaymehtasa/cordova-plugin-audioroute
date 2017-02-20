@@ -260,7 +260,7 @@ public final class AudioRouter extends BroadcastReceiver {
             } else if (connectionState == 0) {
                 connectedHeadsets.remove(headset);
                 routeMode = AudioRouteMode.SPEAKER;
-                i.putExtra(CURRENT, "Speaker");
+                // i.putExtra(CURRENT, "Speaker");
                 typeSpeaker = "Speaker";
             }
 

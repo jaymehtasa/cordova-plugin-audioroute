@@ -49,6 +49,8 @@ public class AudioRoute extends CordovaPlugin {
     private CallbackContext audioCallbackContext = null;
 
     HashMap<String, String> hashDevices;
+    private String currenOutput = "";
+
     AudioRouter audioRouter;
      public AudioRoute() {
         hashDevices = new HashMap<String, String>();
@@ -58,9 +60,26 @@ public class AudioRoute extends CordovaPlugin {
   @Override
   public void initialize(CordovaInterface cordova, CordovaWebView webView) {
     super.initialize(cordova, webView);
+     cordova.getActivity().
+    registerReceiver(receiver, new IntentFilter(AUDIO_OUTPUT_CHANGED));
+
     audioRouter = new AudioRouter(cordova.getActivity());
   
   }
+
+  BroadcastReceiver receiver = new BroadcastReceiver() {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+      Bundle bundle = intent.getExtras();
+      String str = bundle.getString(CURRENT);
+      // setRouteChangeCallback(str);
+      // audioCallbackContext.sendPluginResult(new PluginResult(status, str));
+      currenOutput = str;
+
+      setRouteChangeCallback(str);
+      //  callbackContext.sendPluginResult(result);
+    }
+  };
 
     /**
      * Executes the request and returns PluginResult.
@@ -90,23 +109,9 @@ public class AudioRoute extends CordovaPlugin {
             return true;
       }
       if (action.equals("setRouteChangeCallback")) {
-            this.audioCallbackContext = callbackContext;
-            BroadcastReceiver receiver = new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-                    Bundle bundle = intent.getExtras();
-                    String str = bundle.getString(CURRENT);
-                    // setRouteChangeCallback(str);
-                    // audioCallbackContext.sendPluginResult(new PluginResult(status, str));
-
-                    
-                        setRouteChangeCallback(str);
-                    //  callbackContext.sendPluginResult(result);
-                }
-            };
-            cordova.getActivity().
-                    registerReceiver(receiver, new IntentFilter(AUDIO_OUTPUT_CHANGED));
-                    return true;
+                 this.audioCallbackContext = callbackContext;
+                setRouteChangeCallback(currenOutput);
+                return true;
 
         }
         callbackContext.sendPluginResult(new PluginResult(status, result));
@@ -178,7 +183,7 @@ public class AudioRoute extends CordovaPlugin {
 
                 if (devices.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
                    
-                    hashDevices.put(productName.toString(), SPEAKER);
+                    hashDevices.put("Phone", SPEAKER);
                 }
             }
 
@@ -186,12 +191,14 @@ public class AudioRoute extends CordovaPlugin {
         return hashDevices;
 
     }
-    public void setRouteChangeCallback(String typeSpeaker) {
-                        // PluginResult result = new PluginResult(PluginResult.Status.OK, typeSpeaker);
-                        PluginResult result = new PluginResult(PluginResult.Status.OK, typeSpeaker);
-                        result.setKeepCallback(true);
-                        audioCallbackContext.sendPluginResult(result);
-        Toast.makeText(cordova.getActivity(), typeSpeaker, Toast.LENGTH_SHORT).show();
-    }
+   public boolean setRouteChangeCallback(String typeSpeaker) {
+    // PluginResult result = new PluginResult(PluginResult.Status.OK, typeSpeaker);
+    PluginResult result = new PluginResult(PluginResult.Status.OK, typeSpeaker);
+    result.setKeepCallback(true);
+    if (audioCallbackContext != null)
+      audioCallbackContext.sendPluginResult(result);
+    Toast.makeText(cordova.getActivity(), typeSpeaker, Toast.LENGTH_SHORT).show();
+    return true;
+  }
 
 }
