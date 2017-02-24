@@ -8,7 +8,11 @@ import android.content.IntentFilter;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Bundle;
-
+import android.bluetooth.BluetoothA2dp;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothProfile;
+ import android.util.Log;
  
 
 import org.apache.cordova.CallbackContext;
@@ -22,10 +26,13 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.HashMap;
+
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 
  
 
@@ -37,49 +44,71 @@ import java.util.Set;
 public class AudioRoute extends CordovaPlugin {
 
     AudioManager audioM = null;
- 
+    //    private Set<BluetoothDevice> devices;
     //    String str;
     public static final String SPEAKER = "Speaker";
     public static final String BLUTOOTH = "Bluetooth";
     public static final String AUXILARY = "Auxilary";
     public static final String Headphone3 = "Headphone";
-    
-     public static final String AUDIO_OUTPUT_CHANGED = "audio_output";
-     public static final String CURRENT = "current_output";
+    public static final String SPEAKER_NAME = "Phone";
+
+
+	private static final String TAG = AudioRoute.class.getName();
+    HashMap<String, String> hashDevices;
+    AudioRouter audioRouter;
+    //Register output
+    public static final String AUDIO_OUTPUT_CHANGED = "audio_output";
+    public static final String CURRENT = "current_output";
+
     private CallbackContext audioCallbackContext = null;
 
-    HashMap<String, String> hashDevices;
-    private String currenOutput = "";
+    //Bluetooth devices connection
 
-    AudioRouter audioRouter;
-     public AudioRoute() {
+    private MusicIntentReceiver myHeadPhonePlugReceiver;
+    //Blutoothth adapter class
+    private BluetoothAdapter mBtAdapter;
+    private BluetoothA2dp mA2dpService;
+    //End of bluetooth adapter class
+    //End of bluetooth devices connection
+
+    public AudioRoute() {
         hashDevices = new HashMap<String, String>();
-      
-  }
-
-  @Override
-  public void initialize(CordovaInterface cordova, CordovaWebView webView) {
-    super.initialize(cordova, webView);
-     cordova.getActivity().
-    registerReceiver(receiver, new IntentFilter(AUDIO_OUTPUT_CHANGED));
-
-    audioRouter = new AudioRouter(cordova.getActivity());
-  
-  }
-
-  BroadcastReceiver receiver = new BroadcastReceiver() {
-    @Override
-    public void onReceive(Context context, Intent intent) {
-      Bundle bundle = intent.getExtras();
-      String str = bundle.getString(CURRENT);
-      // setRouteChangeCallback(str);
-      // audioCallbackContext.sendPluginResult(new PluginResult(status, str));
-      currenOutput = str;
-
-      setRouteChangeCallback(str);
-      //  callbackContext.sendPluginResult(result);
     }
-  };
+
+    @Override
+    public void initialize(CordovaInterface cordova, CordovaWebView webView) {
+        super.initialize(cordova, webView);
+
+        //Get audio manager class
+        audioM = (AudioManager) cordova.getActivity().getApplicationContext().
+                getSystemService(cordova.getActivity().getApplicationContext().AUDIO_SERVICE);
+        //End of audio manager class
+
+        audioRouter = new AudioRouter(cordova.getActivity());
+        //default speaker mode enable
+        audioRouter.setRouteMode(AudioRouter.AudioRouteMode.SPEAKER);
+
+        //Register listener for headset plugged in
+        myHeadPhonePlugReceiver = new MusicIntentReceiver();
+        //End of register plugged in
+
+        //Register bluetooth listener
+        cordova.getActivity().registerReceiver(mReceiverBluetooth,
+                new IntentFilter(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED));
+        cordova.getActivity().registerReceiver(mReceiverBluetooth,
+                new IntentFilter(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED));
+        //End of register listener
+
+        //Headphone plugged in broadcast
+        IntentFilter filter = new IntentFilter(Intent.ACTION_HEADSET_PLUG);
+        cordova.getActivity().registerReceiver(myHeadPhonePlugReceiver, filter);
+        //End of head phone broadcast
+
+        mBtAdapter = BluetoothAdapter.getDefaultAdapter();
+        mBtAdapter.getProfileProxy(cordova.getActivity(), mA2dpServiceListener, BluetoothProfile.A2DP);
+        hashDevices.put("Phone", SPEAKER);
+
+    }
 
     /**
      * Executes the request and returns PluginResult.
@@ -90,46 +119,53 @@ public class AudioRoute extends CordovaPlugin {
      * @return A PluginResult object with a status and message.
      */
     @Override
-    public boolean execute(String action, JSONArray args,final CallbackContext callbackContext) throws JSONException {
+    public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
         CordovaResourceApi resourceApi = webView.getResourceApi();
         final PluginResult.Status status = PluginResult.Status.OK;
         String result = "";
         if (action.equals("currentOutputs")) {
-            HashMap<String, String> devicesList = this.getDevicesList();
-
+            HashMap<String, String> devicesList = hashDevices;
             //get json value from the hashmap
             String jsonHashmap = currentOutputs(devicesList);
             callbackContext.sendPluginResult(new PluginResult(status, jsonHashmap));
             return true;
         }
-         if (action.equals("overrideOutput")) {
+        if (action.equals("overrideOutput")) {
             String typeSpeaker = args.getString(0);
             setAudioRoute(typeSpeaker);
             callbackContext.sendPluginResult(new PluginResult(status, typeSpeaker));
             return true;
-      }
-      if (action.equals("setRouteChangeCallback")) {
-                 this.audioCallbackContext = callbackContext;
-                setRouteChangeCallback(currenOutput);
-                return true;
+        }
+        if (action.equals("setRouteChangeCallback")) {
+            this.audioCallbackContext = callbackContext;
+            BroadcastReceiver receiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    Bundle bundle = intent.getExtras();
+                    String str = bundle.getString(CURRENT);
+                    setRouteChangeCallback(str);
+                    audioCallbackContext.sendPluginResult(new PluginResult(status, str));
+
+//                    webView.sendJavascript("cordova.require('cordova-plugin-headsetdetection.HeadsetDetection').remoteHeadsetRemoved();");
+                }
+            };
+            cordova.getActivity().
+                    registerReceiver(receiver, new IntentFilter(AUDIO_OUTPUT_CHANGED));
 
         }
         callbackContext.sendPluginResult(new PluginResult(status, result));
         return true;
     }
 
-     private void setAudioRoute(String typeSpeaker) {
-            audioRouter = new AudioRouter(cordova.getActivity());
-        //default speaker mode enable
-        // audioRouter.setRouteMode(AudioRouter.AudioRouteMode.SPEAKER);
-         if (typeSpeaker.equalsIgnoreCase(Headphone3)) {
-             audioRouter.setRouteMode(AudioRouter.AudioRouteMode.WIRED_HEADPHONE);
+    private void setAudioRoute(String typeSpeaker) {
+        if (typeSpeaker.equalsIgnoreCase(Headphone3)) {
+            audioRouter.setRouteMode(AudioRouter.AudioRouteMode.WIRED_HEADPHONE);
         } else if (typeSpeaker.equalsIgnoreCase(SPEAKER)) {
             audioRouter.setRouteMode(AudioRouter.AudioRouteMode.SPEAKER);
-         } else if (typeSpeaker.equalsIgnoreCase(BLUTOOTH)) {
+        } else if (typeSpeaker.equalsIgnoreCase(BLUTOOTH)) {
             audioRouter.setRouteMode(AudioRouter.AudioRouteMode.BLUETOOTH_A2DP);
+        }
     }
-  }
 
     private String currentOutputs(HashMap<String, String> devicesList) {
         Set mapSet = (Set) devicesList.entrySet();
@@ -159,46 +195,156 @@ public class AudioRoute extends CordovaPlugin {
     }
 
     private HashMap<String, String> getDevicesList() {
-        audioM = (AudioManager) cordova.getActivity().getApplicationContext().
-                getSystemService(cordova.getActivity().getApplicationContext().AUDIO_SERVICE);
+//        hashDevices.put(SPEAKER_NAME, SPEAKER);
 
-        AudioDeviceInfo[] adi = null;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            adi = audioM.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
-            for (AudioDeviceInfo devices :
-                    adi) {
-                CharSequence productName = devices.getProductName();
-                if (devices.getType() == AudioDeviceInfo.TYPE_WIRED_HEADPHONES) {
-                   
-                    hashDevices.put("Headphone1", Headphone3);
-                }
-                if (devices.getType() == AudioDeviceInfo.TYPE_WIRED_HEADSET) {
-                    
-                    hashDevices.put("Headphone", Headphone3);
-                }
-                if (devices.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
-                    
-                    hashDevices.put(productName.toString(), BLUTOOTH);
-                }
-
-                if (devices.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
-                   
-                    hashDevices.put("Phone", SPEAKER);
-                }
-            }
-
-        }
+//        AudioDeviceInfo[] adi = null;
+//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+//            adi = audioM.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+//            for (AudioDeviceInfo devices :
+//                    adi) {
+//                CharSequence productName = devices.getProductName();
+//                if (devices.getType() == AudioDeviceInfo.TYPE_WIRED_HEADPHONES) {
+//
+//                    hashDevices.put("Headphone1", Headphone3);
+//                }
+//                if (devices.getType() == AudioDeviceInfo.TYPE_WIRED_HEADSET) {
+//
+//                    hashDevices.put("Headphone3", Headphone3);
+//                }
+//                if (devices.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+//
+//                    hashDevices.put(productName.toString(), BLUTOOTH);
+//                }
+//
+//                if (devices.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+//
+//                    hashDevices.put(productName.toString(), SPEAKER);
+//                }
+//            }
+//
+//        }
         return hashDevices;
 
     }
-   public boolean setRouteChangeCallback(String typeSpeaker) {
-    // PluginResult result = new PluginResult(PluginResult.Status.OK, typeSpeaker);
-    PluginResult result = new PluginResult(PluginResult.Status.OK, typeSpeaker);
-    result.setKeepCallback(true);
-    if (audioCallbackContext != null)
-      audioCallbackContext.sendPluginResult(result);
-    // /Toast.makeText(cordova.getActivity(), typeSpeaker, Toast.LENGTH_SHORT).show();
-    return true;
-  }
+
+    @Override
+    public void onDestroy() {
+
+        audioM.setMode(AudioManager.MODE_NORMAL);
+        audioM.setSpeakerphoneOn(true);
+
+        mBtAdapter.closeProfileProxy(BluetoothProfile.A2DP, mA2dpService);
+        cordova.getActivity().unregisterReceiver(mReceiverBluetooth);
+        super.onDestroy();
+    }
+
+
+    public void setRouteChangeCallback(String typeSpeaker) {
+        //Toast.makeText(cordova.getActivity(), typeSpeaker, Toast.LENGTH_SHORT).show();
+    }
+
+
+    BroadcastReceiver mReceiverBluetooth = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(Context ctx, Intent intent) {
+            String action = intent.getAction();
+            Log.d(TAG, "receive intent for action : " + action);
+            if (action.equals(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)) {
+                int state = intent.getIntExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_DISCONNECTED);
+                if (state == BluetoothA2dp.STATE_CONNECTED) {
+                    setIsA2dpReady(true);
+//                    playMusic();
+                } else if (state == BluetoothA2dp.STATE_DISCONNECTED) {
+                    setIsA2dpReady(false);
+                }
+            } else if (action.equals(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED)) {
+                int state = intent.getIntExtra(BluetoothA2dp.EXTRA_STATE, BluetoothA2dp.STATE_NOT_PLAYING);
+                if (state == BluetoothA2dp.STATE_PLAYING) {
+                    Log.d(TAG, "A2DP start playing");
+//                    Toast.makeText(A2DPActivity.this, "A2dp is playing", Toast.LENGTH_SHORT).show();
+                } else {
+                    Log.d(TAG, "A2DP stop playing");
+//                    Toast.makeText(A2DPActivity.this, "A2dp is stopped", Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+
+    };
+    boolean mIsA2dpReady = false;
+
+    void setIsA2dpReady(boolean ready) {
+        mIsA2dpReady = ready;
+        //Toast.makeText(cordova.getActivity(), "A2DP ready ? " + (ready ? "true" : "false"), Toast.LENGTH_SHORT).show();
+    }
+
+    private class MusicIntentReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(Intent.ACTION_HEADSET_PLUG)) {
+                int state = intent.getIntExtra("state", -1);
+                switch (state) {
+                    case 0:
+                        Log.d(TAG, "Headset is unplugged");
+                        hashDevices.remove("Headphone");
+                        break;
+                    case 1:
+                        hashDevices.put("Headphone", Headphone3);
+                        Log.d(TAG, "Headset is plugged");
+                        break;
+                    default:
+                        Log.d(TAG, "I have no idea what the headset state is");
+                }
+            }
+        }
+    }
+
+    private BluetoothProfile.ServiceListener mA2dpServiceListener = new BluetoothProfile.ServiceListener() {
+
+        @Override
+        public void onServiceConnected(int profile, BluetoothProfile a2dp) {
+            Log.d(TAG, "a2dp service connected. profile = " + profile);
+            if (profile == BluetoothProfile.A2DP) {
+                mA2dpService = (BluetoothA2dp) a2dp;
+
+                List<BluetoothDevice> bluetoothDevices =
+                        a2dp.getConnectedDevices();
+                if (bluetoothDevices.size() > 0) {
+                    for (BluetoothDevice devices :
+                            bluetoothDevices) {
+                        hashDevices.put(devices.getName(), BLUTOOTH);
+                        audioRouter.connectedBluetoothDevices.add(devices);
+                    }
+
+//                    audioRouter.connectedBluetoothDevices.add(bluetoothDevices.get(0));
+//                    listMap.put(bluetoothDevices.get(0).getName(), BLUTOOTH);
+                }
+                if (audioM.isBluetoothA2dpOn()) {
+                    setIsA2dpReady(true);
+//                    playMusic();
+                } else {
+                    Log.d(TAG, "bluetooth a2dp is not on while service connected");
+                }
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(int profile) {
+            if (mA2dpService != null) {
+                if (profile == BluetoothProfile.A2DP) {
+                    List<BluetoothDevice> bluetoothDevices =
+                            mA2dpService.getConnectedDevices();
+
+                    for (BluetoothDevice devices :
+                            bluetoothDevices) {
+                        hashDevices.remove(devices.getName());
+                    }
+                }
+
+            }
+            setIsA2dpReady(false);
+        }
+
+    };
 
 }

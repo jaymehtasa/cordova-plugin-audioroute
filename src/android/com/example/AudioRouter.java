@@ -31,7 +31,7 @@ import static com.example.AudioRoute.CURRENT;
 public final class AudioRouter extends BroadcastReceiver {
     private final Context context;
     private AudioRouteMode routeMode = AudioRouteMode.NO_ROUTING;
-    private Collection<BluetoothDevice> connectedBluetoothDevices = new HashSet<BluetoothDevice>();
+    public Collection<BluetoothDevice> connectedBluetoothDevices = new HashSet<BluetoothDevice>();
     private Collection<Headset> connectedHeadsets = new HashSet<Headset>();
     private Collection<UsbAudio> connectedUsbAudios = new HashSet<UsbAudio>();
     private final int initialRoute;
