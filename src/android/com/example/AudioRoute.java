@@ -70,6 +70,7 @@ public class AudioRoute extends CordovaPlugin {
     private BluetoothA2dp mA2dpService;
     //End of bluetooth adapter class
     //End of bluetooth devices connection
+    private List<BluetoothDevice> bluetoothDevices;
 
     public AudioRoute() {
         hashDevices = new HashMap<String, String>();
@@ -304,20 +305,27 @@ public class AudioRoute extends CordovaPlugin {
         @Override
         public void onServiceConnected(int profile, BluetoothProfile a2dp) {
             Log.d(TAG, "a2dp service connected. profile = " + profile);
+
             if (profile == BluetoothProfile.A2DP) {
                 mA2dpService = (BluetoothA2dp) a2dp;
+                List<BluetoothDevice> connectedDevices = mA2dpService.getConnectedDevices();
 
-                List<BluetoothDevice> bluetoothDevices =
-                        a2dp.getConnectedDevices();
+
+                bluetoothDevices = a2dp.getConnectedDevices();
                 if (bluetoothDevices.size() > 0) {
                     for (BluetoothDevice devices :
                             bluetoothDevices) {
-                        hashDevices.put(devices.getName(), BLUTOOTH);
+                        hashDevices.put(devices.getName(),BLUTOOTH);
                         audioRouter.connectedBluetoothDevices.add(devices);
                     }
 
 //                    audioRouter.connectedBluetoothDevices.add(bluetoothDevices.get(0));
 //                    listMap.put(bluetoothDevices.get(0).getName(), BLUTOOTH);
+
+                }
+                if (bluetoothDevices.size() <= 0) {
+                    mBtAdapter.closeProfileProxy(BluetoothProfile.A2DP, mA2dpService);
+                    mBtAdapter.getProfileProxy(cordova.getActivity(), mA2dpServiceListener, BluetoothProfile.A2DP);
                 }
                 if (audioM.isBluetoothA2dpOn()) {
                     setIsA2dpReady(true);
@@ -332,16 +340,17 @@ public class AudioRoute extends CordovaPlugin {
         public void onServiceDisconnected(int profile) {
             if (mA2dpService != null) {
                 if (profile == BluetoothProfile.A2DP) {
-                    List<BluetoothDevice> bluetoothDevices =
-                            mA2dpService.getConnectedDevices();
-
-                    for (BluetoothDevice devices :
-                            bluetoothDevices) {
-                        hashDevices.remove(devices.getName());
-                    }
+//                    List<BluetoothDevice> bluetoothDevices =
+//                            mA2dpService.getConnectedDevices();
+                    if (bluetoothDevices != null && bluetoothDevices.size() > 0)
+                        for (BluetoothDevice devices :
+                                bluetoothDevices) {
+                            hashDevices.remove(devices.getName());
+                        }
                 }
 
             }
+//            listMap.remove(BLUTOOTH);
             setIsA2dpReady(false);
         }
 
